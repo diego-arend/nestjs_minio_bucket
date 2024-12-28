@@ -4,11 +4,11 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import * as Minio from 'minio';
-import { BUCKET } from 'src/configs/configConstants';
-import { InjectMinio } from 'src/providers/minio/minio.decorator';
 import { randomUUID } from 'crypto';
 import { ErrorHandler } from '@nestjs/common/interfaces';
 import { UploadedImage } from './interface/interfaces';
+import { BUCKET } from './configs/configConstants';
+import { InjectMinio } from '../providers/minio/minio.decorator';
 
 @Injectable()
 export class FileBucketService {
@@ -47,9 +47,7 @@ export class FileBucketService {
   ): Promise<UploadedImage | ErrorHandler> {
     const fileUploadName = `${randomUUID().toString()}.${file.originalname}`;
 
-    const exists = await this.bucketExists(this.bucket);
-
-    if (!exists) {
+    if (!(await this.bucketExists(this.bucket))) {
       await this.makeBucket(this.bucket, this.bucketRegion);
     }
 

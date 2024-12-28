@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { FileBucketService } from './fileBucket.service';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { BUCKET } from 'src/configs/configConstants';
+import { BUCKET } from '../fileBucket/configs/configConstants';
 
 @Controller('upload')
 export class FileBucketController {
