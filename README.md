@@ -8,7 +8,7 @@ Foi utilizado como base o projeto Open-Source Minio que é um servidor de "Bucke
 No arquivo ".env.example" estão as chaves necessárias.
 Note que a chave ENV que será responsável pela configuração do ambiente. Se for igual a "development" a aplicação será configruada para conectar no Minio. Já se for "production" será configurada para conectar com o AWS-S3.
 
-No arquivo "src/config/configConstants.ts" estão as constantes utilizadas nos serviços. Se no futuro forem utilizados mais de um tipo de BUCKET suas configurações devem ser adicionadas aqui.
+No arquivo "src/fileBucket/configs/configConstants.ts" estão as constantes utilizadas nos serviços. Se no futuro forem utilizados mais de um tipo de BUCKET suas configurações devem ser adicionadas aqui.
 
 ## Como é feita a escolha do provedor?
 
