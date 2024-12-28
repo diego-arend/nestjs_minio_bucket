@@ -51,29 +51,17 @@ export class FileBucketService {
       await this.makeBucket(this.bucket, this.bucketRegion);
     }
 
-    const upload = await this.s3Client.putObject(
-      this.bucket,
-      fileUploadName,
-      file.buffer,
-      file.size,
-      (error: Error | null, objInfo: { etag: string }) => {
-        if (error) {
-          return new Error('file not uploaded');
-        } else {
-          return objInfo;
-        }
-      },
-    );
+    try {
+      const upload = await this.s3Client.putObject(
+        this.bucket,
+        fileUploadName,
+        file.buffer,
+        file.size
+      );
 
-    if (upload instanceof Error) {
-      throw new BadRequestException(upload.message);
+      return { url: `http://localhost:9000/${BUCKET.NAME}/${fileUploadName}`, etag: upload.etag };
+    } catch (error) {
+      throw new BadRequestException('File not uploaded');
     }
-
-    const fileUploaded: UploadedImage = {
-      url: `http://localhost:9000/${BUCKET.NAME}/${fileUploadName}`,
-      etag: upload.etag,
-    };
-
-    return fileUploaded;
   }
 }
