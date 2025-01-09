@@ -68,4 +68,19 @@ export class FileBucketService {
       throw new BadRequestException('File not uploaded');
     }
   }
+
+  async deleteImage(fileName: string): Promise<void> {
+    try {
+      // Check if the bucket exists
+      if (!(await this.bucketExists(this.bucket))) {
+        throw new BadRequestException('Bucket does not exist');
+      }
+
+      // Delete the file from the bucket
+      await this.s3Client.removeObject(this.bucket, fileName);
+    } catch (error) {
+      console.error('File deletion failed:', error);
+      throw new InternalServerErrorException('Failed to delete file');
+    }
+  }
 }
