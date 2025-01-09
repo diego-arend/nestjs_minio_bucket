@@ -1,8 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 
-function ConfigClientConnectS3Minio() {
-  const configService = new ConfigService();
-
+function ConfigClientConnectS3Minio(configService: ConfigService) {
   if (configService.getOrThrow('ENV') === 'development') {
     // Check if environment is development and config service for MINIO Container
     return {

@@ -13,7 +13,7 @@ import { InjectMinio } from '../providers/minio/minio.decorator';
 @Injectable()
 export class FileBucketService {
   private readonly bucket = BUCKET.NAME;
-  private readonly bucketRegion = BUCKET.REGION;
+  private readonly bucketRegion = BUCKET.REGION();
 
   constructor(@InjectMinio() private readonly s3Client: Minio.Client) {}
 
@@ -56,11 +56,15 @@ export class FileBucketService {
         this.bucket,
         fileUploadName,
         file.buffer,
-        file.size
+        file.size,
       );
 
-      return { url: `http://localhost:9000/${BUCKET.NAME}/${fileUploadName}`, etag: upload.etag };
+      return {
+        url: `http://localhost:9000/${BUCKET.NAME}/${fileUploadName}`,
+        etag: upload.etag,
+      };
     } catch (error) {
+      console.error('File upload failed:', error);
       throw new BadRequestException('File not uploaded');
     }
   }

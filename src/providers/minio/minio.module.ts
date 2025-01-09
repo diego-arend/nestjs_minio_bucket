@@ -11,8 +11,12 @@ import ConfigClientConnectS3Minio from './minio-s3';
     {
       inject: [ConfigService],
       provide: MINIO_TOKEN,
-      useFactory: async (): Promise<Minio.Client> => {
-        const client = new Minio.Client(ConfigClientConnectS3Minio());
+      useFactory: async (
+        configService: ConfigService,
+      ): Promise<Minio.Client> => {
+        const client = new Minio.Client(
+          ConfigClientConnectS3Minio(configService),
+        );
         return client;
       },
     },

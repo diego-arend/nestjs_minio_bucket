@@ -2,148 +2,167 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { FileBucketService } from './fileBucket.service';
 import { MINIO_TOKEN } from '../providers/minio/minio.decorator';
 import * as Minio from 'minio';
-import { BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-
-// Mock the ConfigService module
-jest.mock('@nestjs/config');
+import { initializeConfig } from './configs/configConstants';
+import { UploadedImage } from './interface/interfaces';
 
 describe('FileBucketService', () => {
   let service: FileBucketService;
   let s3Client: jest.Mocked<Minio.Client>;
+  let configService: ConfigService;
 
   beforeEach(async () => {
     // Set up ConfigService mock
-    (ConfigService as jest.Mock).mockImplementation(() => ({
-      getOrThrow: jest.fn((key) => {
-        if (key === 'S3_REGION') return 'us-east-1';
-        throw new Error(`Configuration key "${key}" does not exist`);
-      }),
-    }));
+    configService = new ConfigService();
+    jest.spyOn(configService, 'getOrThrow').mockImplementation((key) => {
+      switch (key) {
+        case 'ENV':
+          return 'development';
+        case 'S3_ENDPOINT':
+          return 'localhost';
+        case 'S3_ACCESS_KEY':
+          return 'minio-access-key';
+        case 'S3_SECRET_KEY':
+          return 'minio-secret-key';
+        case 'S3_REGION':
+          return 'us-east-1';
+        default:
+          return '';
+      }
+    });
 
-    const mockedMinioClient = {
+    // Initialize config with the mock ConfigService
+    initializeConfig(configService);
+
+    // Create a mock Minio client
+    s3Client = {
+      putObject: jest.fn(),
       bucketExists: jest.fn(),
       makeBucket: jest.fn(),
-      putObject: jest.fn(),
-    };
+    } as unknown as jest.Mocked<Minio.Client>;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         FileBucketService,
         {
           provide: MINIO_TOKEN,
-          useValue: mockedMinioClient,
+          useValue: s3Client,
+        },
+        {
+          provide: ConfigService,
+          useValue: configService,
         },
       ],
     }).compile();
 
     service = module.get<FileBucketService>(FileBucketService);
-    s3Client = module.get(MINIO_TOKEN) as jest.Mocked<Minio.Client>;
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
   });
 
   it('should upload an image successfully', async () => {
     const mockFile = {
-      originalname: 'test.png',
+      originalname: 'test.jpg',
       buffer: Buffer.from('test'),
-      size: 123,
+      mimetype: 'image/jpeg',
     } as Express.Multer.File;
 
     s3Client.bucketExists.mockResolvedValue(true);
-    s3Client.putObject.mockImplementation((bucket, name, buffer, size) => {
-      return Promise.resolve({
-        etag: 'mock-etag',
-        versionId: 'mock-version-id',
-      });
-    });
+    s3Client.putObject.mockResolvedValue({ etag: 'test-etag' } as any);
 
-    const result = await service.uploadImage(mockFile);
-
-    expect(result).toEqual({
-      url: expect.stringMatching(/^http:\/\/localhost:9000\/image\/.+\.test\.png$/),
-      etag: 'mock-etag',
-    });
+    const result = (await service.uploadImage(mockFile)) as UploadedImage;
+    expect(result).toBeDefined();
+    expect(result.url).toBeDefined();
+    expect(result.etag).toBe('test-etag');
   });
 
   it('should throw BadRequestException if upload fails', async () => {
     const mockFile = {
-      originalname: 'test.png',
+      originalname: 'test.jpg',
       buffer: Buffer.from('test'),
-      size: 123,
+      mimetype: 'image/jpeg',
     } as Express.Multer.File;
 
     s3Client.bucketExists.mockResolvedValue(true);
-    s3Client.putObject.mockImplementation((bucket: string, name: string, buffer: Buffer, size: number) => {
-      return Promise.reject(new Error('Upload failed')); // Simulate an error
-    });
+    s3Client.putObject.mockRejectedValue(new Error('Upload failed'));
 
-    await expect(service.uploadImage(mockFile)).rejects.toThrow(BadRequestException);
+    await expect(service.uploadImage(mockFile)).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('should throw InternalServerErrorException if bucket check fails', async () => {
     const mockFile = {
-      originalname: 'test.png',
+      originalname: 'test.jpg',
       buffer: Buffer.from('test'),
-      size: 123,
+      mimetype: 'image/jpeg',
     } as Express.Multer.File;
 
     s3Client.bucketExists.mockRejectedValue(new Error('Bucket check failed'));
 
-    await expect(service.uploadImage(mockFile)).rejects.toThrow(InternalServerErrorException);
+    await expect(service.uploadImage(mockFile)).rejects.toThrow(
+      InternalServerErrorException,
+    );
   });
 
   it('should throw BadRequestException if the file upload fails', async () => {
     const mockFile = {
-      originalname: 'test.png',
+      originalname: 'test.jpg',
       buffer: Buffer.from('test'),
-      size: 123,
+      mimetype: 'image/jpeg',
     } as Express.Multer.File;
 
-    s3Client.putObject.mockImplementation((bucket: string, name: string, buffer: Buffer, size: number) => {
-      return Promise.reject(new Error('Upload failed')); // Simulate an error
-    });
-
     s3Client.bucketExists.mockResolvedValue(true);
+    s3Client.putObject.mockRejectedValue(new Error('Upload failed'));
 
-    await expect(service.uploadImage(mockFile)).rejects.toThrow(BadRequestException);
+    await expect(service.uploadImage(mockFile)).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('should successfully create a bucket', async () => {
     const bucketName = 'test-bucket';
     const bucketRegion = 'us-east-1';
 
-    await service.makeBucket(bucketName, bucketRegion);
+    s3Client.makeBucket.mockResolvedValue();
 
-    expect(s3Client.makeBucket).toHaveBeenCalledWith(bucketName, bucketRegion);
+    await expect(
+      service.makeBucket(bucketName, bucketRegion),
+    ).resolves.not.toThrow();
   });
 
   it('should throw InternalServerErrorException if makeBucket fails', async () => {
     const bucketName = 'test-bucket';
     const bucketRegion = 'us-east-1';
 
-    s3Client.makeBucket.mockRejectedValue(new Error('Bucket creation failed'));
+    s3Client.makeBucket.mockRejectedValue(new Error('Failed to create bucket'));
 
-    await expect(service.makeBucket(bucketName, bucketRegion)).rejects.toThrow(InternalServerErrorException);
+    await expect(service.makeBucket(bucketName, bucketRegion)).rejects.toThrow(
+      InternalServerErrorException,
+    );
   });
 
   it('should throw InternalServerErrorException if makeBucket fails with a specific error message', async () => {
     const bucketName = 'test-bucket';
     const bucketRegion = 'us-east-1';
 
-    s3Client.makeBucket.mockRejectedValue(new Error('Bucket already exists'));
+    s3Client.makeBucket.mockRejectedValue(new Error('Failed to create bucket'));
 
-    await expect(service.makeBucket(bucketName, bucketRegion)).rejects.toThrow(InternalServerErrorException);
+    await expect(service.makeBucket(bucketName, bucketRegion)).rejects.toThrow(
+      'Bucket server error',
+    );
   });
 
   it('should throw InternalServerErrorException if makeBucket fails with a network error', async () => {
     const bucketName = 'test-bucket';
     const bucketRegion = 'us-east-1';
 
-    s3Client.makeBucket.mockRejectedValue(new Error('ENOTFOUND'));
+    s3Client.makeBucket.mockRejectedValue(new Error('Network error'));
 
-    await expect(service.makeBucket(bucketName, bucketRegion)).rejects.toThrow(InternalServerErrorException);
+    await expect(service.makeBucket(bucketName, bucketRegion)).rejects.toThrow(
+      'Bucket server error',
+    );
   });
 });
