@@ -21,8 +21,10 @@ export class FileBucketService {
     try {
       return await this.s3Client.bucketExists(bucketName);
     } catch (err) {
-      if (err) {
-        throw new InternalServerErrorException('Bucket server error');
+      if (err instanceof Error) {
+        throw new InternalServerErrorException(
+          `Bucket server error. ${err.message}`,
+        );
       }
       throw new InternalServerErrorException('Bucket server error');
     }
@@ -35,8 +37,10 @@ export class FileBucketService {
     try {
       await this.s3Client.makeBucket(bucketName, bucketRegion);
     } catch (err) {
-      if (err) {
-        throw new InternalServerErrorException('Bucket server error');
+      if (err instanceof Error) {
+        throw new InternalServerErrorException(
+          `Bucket server error. ${err.message}`,
+        );
       }
       throw new InternalServerErrorException('Bucket server error');
     }

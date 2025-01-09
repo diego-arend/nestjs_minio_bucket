@@ -33,7 +33,7 @@ export class FileBucketController {
     return this.uploadService.uploadImage(file);
   }
 
-  @Delete(':fileName')
+  @Delete(':fileName') // Add parameter placeholder
   async deleteImage(@Param('fileName') fileName: string) {
     return this.uploadService.deleteImage(fileName);
   }
