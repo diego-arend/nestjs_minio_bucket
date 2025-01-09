@@ -16,7 +16,6 @@ describe('FileBucketService', () => {
   let configService: ConfigService;
 
   beforeEach(async () => {
-    // Set up ConfigService mock
     configService = new ConfigService();
     jest.spyOn(configService, 'getOrThrow').mockImplementation((key) => {
       switch (key) {
@@ -35,14 +34,13 @@ describe('FileBucketService', () => {
       }
     });
 
-    // Initialize config with the mock ConfigService
     initializeConfig(configService);
 
-    // Create a mock Minio client
     s3Client = {
       putObject: jest.fn(),
       bucketExists: jest.fn(),
       makeBucket: jest.fn(),
+      removeObject: jest.fn(),
     } as unknown as jest.Mocked<Minio.Client>;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -67,6 +65,7 @@ describe('FileBucketService', () => {
       originalname: 'test.jpg',
       buffer: Buffer.from('test'),
       mimetype: 'image/jpeg',
+      size: 4,
     } as Express.Multer.File;
 
     s3Client.bucketExists.mockResolvedValue(true);
@@ -83,6 +82,7 @@ describe('FileBucketService', () => {
       originalname: 'test.jpg',
       buffer: Buffer.from('test'),
       mimetype: 'image/jpeg',
+      size: 4,
     } as Express.Multer.File;
 
     s3Client.bucketExists.mockResolvedValue(true);
@@ -163,6 +163,45 @@ describe('FileBucketService', () => {
 
     await expect(service.makeBucket(bucketName, bucketRegion)).rejects.toThrow(
       'Bucket server error',
+    );
+  });
+
+  it('should delete an image successfully', async () => {
+    const fileName = 'test-file.jpg';
+
+    s3Client.bucketExists.mockResolvedValue(true);
+    s3Client.removeObject.mockResolvedValue();
+
+    await expect(service.deleteImage(fileName)).resolves.not.toThrow();
+    expect(s3Client.removeObject).toHaveBeenCalledWith(
+      service['bucket'],
+      fileName,
+    );
+  });
+
+  it('should throw BadRequestException if bucket does not exist', async () => {
+    const fileName = 'test-file.jpg';
+
+    s3Client.bucketExists.mockResolvedValue(false);
+
+    await expect(service.deleteImage(fileName)).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(s3Client.removeObject).not.toHaveBeenCalled();
+  });
+
+  it('should throw InternalServerErrorException if file deletion fails', async () => {
+    const fileName = 'test-file.jpg';
+
+    s3Client.bucketExists.mockResolvedValue(true);
+    s3Client.removeObject.mockRejectedValue(new Error('Deletion failed'));
+
+    await expect(service.deleteImage(fileName)).rejects.toThrow(
+      InternalServerErrorException,
+    );
+    expect(s3Client.removeObject).toHaveBeenCalledWith(
+      service['bucket'],
+      fileName,
     );
   });
 });

@@ -1,16 +1,13 @@
 import {
   Controller,
-  // Get,
   Post,
-  // Body,
-  // Patch,
-  // Param,
-  // Delete,
+  Delete,
   UseInterceptors,
   UploadedFile,
   ParseFilePipe,
   MaxFileSizeValidator,
   FileTypeValidator,
+  Param,
 } from '@nestjs/common';
 import { FileBucketService } from './fileBucket.service';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -36,23 +33,8 @@ export class FileBucketController {
     return this.uploadService.uploadImage(file);
   }
 
-  // @Get()
-  // findAll() {
-  //   return this.uploadService.findAll();
-  // }
-
-  // @Get(':id')
-  // findOne(@Param('id') id: string) {
-  //   return this.uploadService.findOne(+id);
-  // }
-
-  // @Patch(':id')
-  // update(@Param('id') id: string, @Body() updateUploadDto: UpdateUploadDto) {
-  //   return this.uploadService.update(+id, updateUploadDto);
-  // }
-
-  // @Delete(':id')
-  // remove(@Param('id') id: string) {
-  //   return this.uploadService.remove(+id);
-  // }
+  @Delete(':fileName')
+  async deleteImage(@Param('fileName') fileName: string) {
+    return this.uploadService.deleteImage(fileName);
+  }
 }

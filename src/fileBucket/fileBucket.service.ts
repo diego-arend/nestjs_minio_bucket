@@ -64,7 +64,9 @@ export class FileBucketService {
         etag: upload.etag,
       };
     } catch (error) {
-      console.error('File upload failed:', error);
+      if (error instanceof Error) {
+        throw new BadRequestException('File not uploaded');
+      }
       throw new BadRequestException('File not uploaded');
     }
   }
@@ -79,7 +81,9 @@ export class FileBucketService {
       // Delete the file from the bucket
       await this.s3Client.removeObject(this.bucket, fileName);
     } catch (error) {
-      console.error('File deletion failed:', error);
+      if (error instanceof BadRequestException) {
+        throw error; // Re-throw BadRequestException
+      }
       throw new InternalServerErrorException('Failed to delete file');
     }
   }
